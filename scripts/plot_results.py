@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 # Define a path using 
-path_to_data = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "build", "kf_results.csv")
+path_to_data = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "build", "ekf_results.csv")
 # Load the data
 df = pd.read_csv(path_to_data)
 

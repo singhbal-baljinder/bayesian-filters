@@ -44,6 +44,5 @@ endif()
 set(BUILD_TESTING ON CACHE BOOL "Build the unit tests for this library")
 # Tests
 if(BUILD_TESTING)
-  find_package(Catch2 REQUIRED)
   add_subdirectory(tests)
 endif()
