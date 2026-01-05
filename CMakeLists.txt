@@ -6,10 +6,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Eigen3 REQUIRED)
+find_package(casadi REQUIRED)
 
 add_library(${PROJECT_NAME} 
  src/KalmanFilter.cpp
- src/LTIModel.cpp)
+ src/LTIModel.cpp
+ src/NonlinearDynModel.cpp
+ src/ExtendedKalmanFilter.cpp)
 
 target_include_directories(${PROJECT_NAME} 
  PUBLIC 
@@ -23,6 +26,7 @@ target_include_directories(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME} 
  PUBLIC 
+  casadi::casadi
   Eigen3::Eigen)
 
 install(TARGETS ${PROJECT_NAME}
@@ -32,9 +36,14 @@ install(TARGETS ${PROJECT_NAME}
  RUNTIME DESTINATION bin
 )
 
+set(BUILD_EXAMPLES ON CACHE BOOL "Build the examples for this library")
 # Examples
-add_executable(kalman_filter_example examples/kalman_filter_example.cpp)
-target_link_libraries(kalman_filter_example ${PROJECT_NAME})
-
-
-
+if(BUILD_EXAMPLES)
+  add_subdirectory(examples)
+endif()
+set(BUILD_TESTING ON CACHE BOOL "Build the unit tests for this library")
+# Tests
+if(BUILD_TESTING)
+  find_package(Catch2 REQUIRED)
+  add_subdirectory(tests)
+endif()
