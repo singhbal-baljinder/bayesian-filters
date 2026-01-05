@@ -1,6 +1,4 @@
 #include <bayesian-filters/ExtendedKalmanFilter.h>
-#include <bayesian-filters/KalmanFilter.h>
-#include <bayesian-filters/LTIModel.h>
 #include <bayesian-filters/NonlinearDynModel.h>
 
 #include <casadi/casadi.hpp>
@@ -9,133 +7,80 @@
 #include <random>
 
 int main() {
-  // We define a simple mass-spring-damper system as our LTI model
-  // We assume to measure the position only but want an estimate of the velocity
-  // as well The mass is moved using a force (control input)
-  std::vector<double> A_data(4, 0);
-  A_data[0] = 1.0;
-  A_data[1] = 0.1;
-  A_data[2] = -0.2;
-  A_data[3] = 0.9;
-  std::vector<double> B_data(2, 0);
-  B_data[0] = 0.0;
-  B_data[1] = 0.1;
-  std::vector<double> C_data(2, 0);
-  C_data[0] = 1.0;
-  C_data[1] = 0.0;
-  std::vector<double> D_data(1, 0);
-  D_data[0] = 0.0;
-  Eigen::MatrixXd A =
-      Eigen::Map<Eigen::Matrix<double, 2, 2, Eigen::ColMajor>>(A_data.data());
-  Eigen::MatrixXd B =
-      Eigen::Map<Eigen::Matrix<double, 2, 1, Eigen::ColMajor>>(B_data.data());
-  Eigen::MatrixXd C =
-      Eigen::Map<Eigen::Matrix<double, 1, 2, Eigen::RowMajor>>(C_data.data());
-  Eigen::MatrixXd D =
-      Eigen::Map<Eigen::Matrix<double, 1, 1, Eigen::RowMajor>>(D_data.data());
+  // Parameters
+  double dt = 0.01;
+  double g = 9.81;
+  double L = 1.0;
+  double b = 0.8;  // Damping
+
+  // 1. Define Nonlinear Pendulum Dynamics in CasADi
+  casadi::SX x = casadi::SX::sym("x", 2, 1);  // [theta; theta_dot]
+  casadi::SX u = casadi::SX::sym("u", 1, 1);  // torque
+
+  casadi::SX theta = x(0);
+  casadi::SX theta_dot = x(1);
+
+  // x_next = x + f(x,u)*dt
+  casadi::SX theta_next = theta + theta_dot * dt;
+  casadi::SX theta_dot_next =
+      theta_dot + (-(g / L) * casadi::SX::sin(theta) - b * theta_dot + u) * dt;
+
+  casadi::SX state_transition_symbolic =
+      casadi::SX::vertcat({theta_next, theta_dot_next});
+  casadi::SX measurement_symbolic = theta;  // We only measure position (angle)
+
+  // 2. Setup Model and EKF
+  bayesian_filters::NonlinearDynModel pendulum_model(
+      state_transition_symbolic, measurement_symbolic, x, u);
 
   Eigen::MatrixXd process_noise_cov(2, 2);
-  process_noise_cov << 1e-5, 0.0, 0.0, 1e-5;
+  process_noise_cov << 1e-4, 0.0, 0.0, 1e-4;
   Eigen::MatrixXd measurement_noise_cov(1, 1);
   measurement_noise_cov << 1e-2;
 
-  // Define these once at the start of main()
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  // This represents N(0, 1). You multiply by your desired standard deviation.
-  std::normal_distribution<double> normal_distribution(0.0, 1.0);
-
-  bayesian_filters::LTIModel lti_model =
-      bayesian_filters::LTIModel(A, B, C, Eigen::MatrixXd{});
-
-  // The model in the kalman filter (in general not necessarily the same as the
-  // real model)
-  casadi::SX state_symbolic = casadi::SX::sym("x", 2, 1);
-  casadi::SX input_symbolic = casadi::SX::sym("u", 1, 1);
-
-  // Set the symbolic matrives to the numerical values
-  casadi::SX A_symbolic = casadi::SX::zeros(2, 2);
-  A_symbolic(0, 0) = 1.0;
-  A_symbolic(0, 1) = 0.1;
-  A_symbolic(1, 0) = -0.2;
-  A_symbolic(1, 1) = 0.9;
-  casadi::SX B_symbolic = casadi::SX::zeros(2, 1);
-  B_symbolic(0, 0) = 0.0;
-  B_symbolic(1, 0) = 0.1;
-  casadi::SX C_symbolic = casadi::SX::zeros(1, 2);
-  C_symbolic(0, 0) = 1.0;
-
-  casadi::SX state_transition_symbolic =
-      mtimes(A_symbolic, state_symbolic) + mtimes(B_symbolic, input_symbolic);
-  casadi::SX measurement_symbolic = mtimes(C_symbolic, state_symbolic);
-  bayesian_filters::NonlinearDynModel nonlinear_model =
-      bayesian_filters::NonlinearDynModel(state_transition_symbolic,
-                                          measurement_symbolic,
-                                          state_symbolic,
-                                          input_symbolic);
-
-  // Initial state and covariance of the Kalman Filter
   Eigen::MatrixXd init_state(2, 1);
-  init_state << 0.0, 0.0;
-  Eigen::MatrixXd init_covariance = Eigen::MatrixXd::Identity(2, 2) * 1.0;
-  bayesian_filters::ExtendedKalmanFilter ekf(nonlinear_model,
+  init_state << 0.5, 0.0;  // Start at 0.5 rad
+  Eigen::MatrixXd init_covariance = Eigen::MatrixXd::Identity(2, 2) * 0.1;
+
+  bayesian_filters::ExtendedKalmanFilter ekf(pendulum_model,
                                              init_state,
                                              init_covariance,
                                              process_noise_cov,
                                              measurement_noise_cov);
 
-  // Simulate some measurements (for example purposes, we use the true model
-  // output plus noise)
-  int num_steps = 100;
-  std::vector<Eigen::MatrixXd> measurements(num_steps);
-  std::vector<Eigen::MatrixXd> input(num_steps);
-  std::vector<Eigen::MatrixXd> state_estimates(num_steps);
-  std::vector<Eigen::MatrixXd> covariance_estimates(num_steps);
-
-  float period = 10.0;
-  double my_pi = 3.14159265358979323846;
-  // Angular vel of a sinusoidal input [rad/iteration]
-  float angular_freq = 0.1 * 2 * my_pi / period;
+  // 3. Simulation Loop
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::normal_distribution<double> dist(0.0, 1.0);
 
   std::ofstream data_file("ekf_results.csv");
   data_file << "time,true_pos,est_pos,est_vel,std_pos\n";
-  // Use a sinusoidal input
-  for (int i = 0; i < 100; i++) {
-    // Control input
-    Eigen::MatrixXd u(1, 1);
-    u(0, 0) = 0.5 * std::sin(2 * my_pi * i);
-    input[i] = u;
 
-    // True output from the model
-    Eigen::MatrixXd true_state = lti_model.stepStateTransition(
-        u, i == 0 ? init_state : state_estimates[i - 1]);
-    Eigen::MatrixXd true_output = lti_model.predictOutput(
-        u, i == 0 ? init_state : state_estimates[i - 1]);
-    // Add measurement noise
+  Eigen::MatrixXd x_true = init_state;
 
-    Eigen::MatrixXd noise(1, 1);
-    noise(0, 0) = normal_distribution(gen) * 0.01;
-    measurements[i] = true_output + noise;
+  for (int i = 0; i < 1000; i++) {
+    Eigen::MatrixXd u_in(1, 1);
+    u_in(0, 0) = 0;  // Zero torque
 
-    // Estimate state using Kalman Filter
-    ekf.predict(u);
-    ekf.update(measurements[i]);
-    state_estimates[i] = ekf.getState();
-    covariance_estimates[i] = ekf.getCovariance();
+    // Update Ground Truth
+    x_true = pendulum_model.stepStateTransition(u_in, x_true);
+    Eigen::MatrixXd y_true = pendulum_model.predictOutput(x_true);
 
-    // Save in  a file or process the estimates as needed
-    double time = i * 0.1;  // Assuming dt = 0.1
-    double est_pos = state_estimates[i](0, 0);
-    double est_vel = state_estimates[i](1, 0);
-    double std_pos =
-        std::sqrt(covariance_estimates[i](0, 0));  // Standard deviation
+    // Create Measurement (Truth + Noise)
+    Eigen::MatrixXd z = y_true;
+    z(0, 0) += dist(gen) * std::sqrt(measurement_noise_cov(0, 0));
 
-    data_file << time << "," << measurements[i](0, 0)
-              << ","  // Measurement (Noisy Pos)
-              << est_pos << "," << est_vel << "," << std_pos << "\n";
+    // EKF Step
+    ekf.predict(u_in);
+    ekf.update(z);
+
+    // Save
+    data_file << i * dt << "," << z(0, 0) << "," << ekf.getState()(0, 0) << ","
+              << ekf.getState()(1, 0) << ","
+              << std::sqrt(ekf.getCovariance()(0, 0)) << "\n";
   }
 
   data_file.close();
-  std::cout << "Data saved to ekf_results.csv" << std::endl;
+  std::cout << "Pendulum EKF simulation complete. Data saved." << std::endl;
   return 0;
 }
