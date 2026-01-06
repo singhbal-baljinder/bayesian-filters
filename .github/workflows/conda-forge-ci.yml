@@ -92,7 +92,6 @@ jobs:
             cd build
             cmake ../ -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON -DCMAKE_INSTALL_PREFIX=./install
             cmake --build . --target install --config ${{ matrix.build_type }}
-            catkin_make
 
         - name: Test
           shell: bash
