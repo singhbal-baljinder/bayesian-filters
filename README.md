@@ -20,7 +20,7 @@ Example build steps from the repo path:
 ```
 mkdir -p build
 cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DCMAKE_INSTALL_PREFIX=./install
+cmake .. -DCMAKE_BUILD_TYPE=Release -BUILD_TESTS=ON -BUILD_EXAMPLES=ON -DCMAKE_INSTALL_PREFIX=./install
 cmake --build . --target install 
 ```
 
