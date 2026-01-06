@@ -6,7 +6,7 @@ Kalman Filter, an Extended Kalman Filter (EKF), simple linear time-invariant
 (LTI) models, and a helper `NonlinearDynModel` based on CasADi for symbolic
 model definition.
 
-# ⚙️ **Build (Linux / macOS)**
+# ⚙️ **Build (Linux)**
 Prerequisites: `cmake`, a C++ compiler, `Eigen3`, `CasADi`, and
 Python3 for plotting. You can create the conda environment defined in
 `conda_ci_env.yml` (recommended):
