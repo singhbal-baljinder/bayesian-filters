@@ -1,0 +1,15 @@
+name: bayesian-f
+channels:
+  - conda-forge
+dependencies:
+  - clang
+  - cmake
+  - cxx-compiler
+  - eigen
+  - make
+  - gdb
+  - matplotlib
+  - pandas
+  - casadi
+  - catch2
+prefix: /home/bal/mambaforge/envs/bayesian-f

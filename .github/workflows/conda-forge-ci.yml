@@ -1,0 +1,101 @@
+name: CI ROS build with conda  
+
+on:
+    push:
+    pull_request:
+    
+env:
+    # flag to easily "invalidate" the cache (avoids the restoration)
+    action-restore-cache: 'true'
+    # flag to enable the cache saving
+    action-save-cache: 'true'
+    # define conda-installed dependencies in a file to use it's hash in the cache key
+    CONDA_DEPS_FILE_NAME: 'conda_ci_env.yml'
+
+jobs:
+    build:
+      name: '[${{matrix.os}}@${{matrix.build_type}}]'
+      runs-on: ${{matrix.os}}
+      strategy:
+        matrix:
+            build_type: [Release]
+            os: [ubuntu-latest, ubuntu-22.04, ubuntu-20.04]  
+        fail-fast: false
+      defaults:
+        run:
+          shell: bash -l {0}
+
+      steps:
+        # Checkout in ROS workspace
+        - name: Checkout repository
+          uses: actions/checkout@v6
+
+        # Define conda-installed dependencies in a file to use it's hash in the cache key (CONDA_DEPS_FILE)
+        - name: Find path to conda dependencies yaml file
+          run: |
+            echo "CONDA_DEPS_FILE=$GITHUB_WORKSPACE/${{env.CONDA_DEPS_FILE_NAME}}" >> $GITHUB_ENV
+            
+        # Get the current date
+        # The date is used to invalidate the cache after some time
+        # so the format decides decides when it happens (in this case the cache is invalidated each week)
+        - name: Get current week 
+          run: |
+            echo "DATE=$(date +'%Y-%U')" >> $GITHUB_ENV
+
+        - name: Get the name of the environment
+          run: |
+            echo "CONDA_ENV_NAME=$(grep 'name:' ${{ env.CONDA_DEPS_FILE }} | awk '{print $2}')" >> $GITHUB_ENV
+
+        # Use conda for main dependencies
+        - uses: conda-incubator/setup-miniconda@v3
+          with:
+            activate-environment: ${{ env.CONDA_ENV_NAME }}
+        
+        # Print the environment variables to simplify development and debugging
+        - name: Environment Variables
+          run: env
+          
+        # Remove apt repos on Ubuntu that are known to break from time to time 
+        # See https://github.com/actions/virtual-environments/issues/323 
+        - name: Remove broken apt repos [Ubuntu]
+          if: matrix.os == 'ubuntu-latest'
+          run: |
+            for apt_file in `grep -lr microsoft /etc/apt/sources.list.d/`; do sudo rm $apt_file; done
+        
+        # ============
+        # DEPENDENCIES
+        # ============
+        - name: Restore cached conda based dependencies
+          if: ${{ env.action-restore-cache == 'true' }}
+          uses: actions/cache/restore@v3
+          with:
+            path: ${{ env.CONDA }}/envs/${{ env.CONDA_ENV_NAME }}
+            key: ${{ matrix.os }}-conda-${{ hashFiles(env.CONDA_DEPS_FILE) }}-${{ env.DATE }}
+          id: cache-restore-conda-deps
+        
+        - name: Dependencies (using conda)
+          if: steps.cache-restore-conda-deps.outputs.cache-hit != 'true'
+          run: |
+            conda env update -f ${{env.CONDA_DEPS_FILE}}
+            
+        - name: Cache conda based dependencies
+          if: ${{ env.action-save-cache == 'true' && steps.cache-restore-conda-deps.outputs.cache-hit != 'true' }}
+          uses: actions/cache/save@v3
+          with:
+            path: ${{ env.CONDA }}/envs/${{ env.CONDA_ENV_NAME }}
+            key: ${{ matrix.os }}-conda-${{ hashFiles(env.CONDA_DEPS_FILE) }}-${{ env.DATE }}
+          id: cache-save-conda-deps
+        
+        - name: Build
+          run: |
+            mkdir -p build
+            cd build
+            cmake ../ -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON -DCMAKE_INSTALL_PREFIX=./install
+            cmake --build . --target install --config ${{ matrix.build_type }}
+            catkin_make
+
+        - name: Test
+          shell: bash
+          run: |
+            cd build/tests
+            ctest --output-on-failure .
