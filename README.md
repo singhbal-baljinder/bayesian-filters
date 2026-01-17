@@ -1,10 +1,8 @@
 # 🧠 Bayesian filters
 
 A compact C++ library providing implementations of common Bayesian filters
-for linear and nonlinear dynamical systems. Currently, the project includes a
-Kalman Filter, an Extended Kalman Filter (EKF), simple linear time-invariant
-(LTI) models, and a helper `NonlinearDynModel` based on CasADi for symbolic
-model definition.
+for linear and nonlinear dynamical systems. Currently the following filters are implemented: `KalmanFilter`, `ExtendedKalmanFilter` and a `VariationalFreeEnergyFilter`. The latter is an implementation of the posterior state inference through [Variational Free Energy minimization](https://www.fil.ion.ucl.ac.uk/~karl/Generalised%20Filtering.pdf).
+
 
 # ⚙️ **Build (Linux)**
 Prerequisites: `cmake`, a C++ compiler, `Eigen3`, `CasADi`, and
