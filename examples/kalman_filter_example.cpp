@@ -24,8 +24,8 @@ int main() {
   measurement_noise_cov << 1e-2;
 
   // Define these once at the start of main()
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  unsigned int seed = 42;
+  std::mt19937 gen(seed);
   // This represents N(0, 1). You multiply by your desired standard deviation.
   std::normal_distribution<double> normal_distribution(0.0, 1.0);
 

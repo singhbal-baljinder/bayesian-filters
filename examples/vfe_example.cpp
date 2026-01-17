@@ -1,5 +1,5 @@
-#include <bayesian-filters/ExtendedKalmanFilter.h>
 #include <bayesian-filters/NonlinearDynModel.h>
+#include <bayesian-filters/VariationalFreeEnergyFilter.h>
 
 #include <casadi/casadi.hpp>
 #include <fstream>
@@ -41,20 +41,21 @@ int main() {
   Eigen::MatrixXd init_state(2, 1);
   init_state << 0.5, 0.0;  // Start at 0.5 rad
   Eigen::MatrixXd init_covariance = Eigen::MatrixXd::Identity(2, 2) * 0.1;
+  const std::map<std::string, int> opts{{"N", 1}, {"alpha", 0.001}};
 
-  bayesian_filters::ExtendedKalmanFilter ekf(pendulum_model,
-                                             init_state,
-                                             init_covariance,
-                                             process_noise_cov,
-                                             measurement_noise_cov);
+  bayesian_filters::VariationalFreeEnergyFilter vfe(pendulum_model,
+                                                    init_state,
+                                                    process_noise_cov,
+                                                    measurement_noise_cov,
+                                                    opts);
 
   // 3. Simulation Loop
   unsigned int seed = 42;
   std::mt19937 gen(seed);
   std::normal_distribution<double> dist(0.0, 1.0);
 
-  std::ofstream data_file("ekf_results.csv");
-  data_file << "time,measured_pos,est_pos,est_vel,std_pos,true_pos,true_vel\n";
+  std::ofstream data_file("vfe_results.csv");
+  data_file << "time,measured_pos,est_pos,est_vel,true_pos,true_vel\n";
 
   Eigen::MatrixXd x_true = init_state;
 
@@ -70,15 +71,15 @@ int main() {
     Eigen::MatrixXd z = y_true;
     z(0, 0) += dist(gen) * std::sqrt(measurement_noise_cov(0, 0));
 
-    // EKF Step
-    ekf.predict(u_in);
-    ekf.update(z);
+    // Make a prediction step and get expected posterior (x_next_prior)
+    vfe.predict(u_in);
+    // Infere state posterior
+    vfe.update(z);
 
     // Save
-    data_file << i * dt << "," << z(0, 0) << "," << ekf.getState()(0, 0) << ","
-              << ekf.getState()(1, 0) << ","
-              << std::sqrt(ekf.getCovariance()(0, 0)) << x_true(0, 0) << ","
-              << x_true(0, 0) << "\n";
+    data_file << i * dt << "," << z(0, 0) << "," << vfe.getState()(0, 0) << ","
+              << vfe.getState()(1, 0) << x_true(0, 0) << "," << x_true(0, 0)
+              << "\n";
   }
 
   data_file.close();

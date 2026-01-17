@@ -48,6 +48,12 @@ NonlinearDynModel::NonlinearDynModel(
   state_dim_ = state_symbolic_.rows();
   input_dim_ = input_symbolic_.rows();
   output_dim_ = measurement_symbolic.rows();
+
+  // Some info messages to print
+  std::cout << "Create a NonlinearDynModel: " << std::endl;
+  std::cout << "state_dim: " << state_dim_ << std::endl;
+  std::cout << "input_dim_: " << input_dim_ << std::endl;
+  std::cout << "output_dim_: " << output_dim_ << std::endl;
 }
 
 Eigen::MatrixXd NonlinearDynModel::stepStateTransition(
@@ -116,11 +122,13 @@ Eigen::MatrixXd NonlinearDynModel::computeMeasurementJacobianWrtState(
 
 int NonlinearDynModel::getStateDimension() { return state_dim_; }
 int NonlinearDynModel::getInputDimension() { return input_dim_; }
-int NonlinearDynModel::getInputDimension() { return input_dim_; }
+int NonlinearDynModel::getOutputDimension() { return output_dim_; }
 
-casadi::Function getStateTransitionFunction() {
+casadi::Function NonlinearDynModel::getStateTransitionFunction() {
   return state_transition_function_;
 }
 
-casadi::Function getMeasurementFunction() { return measurement_function_; }
+casadi::Function NonlinearDynModel::getMeasurementFunction() {
+  return measurement_function_;
+}
 }  // namespace bayesian_filters
