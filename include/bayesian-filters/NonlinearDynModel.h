@@ -74,8 +74,11 @@ class NonlinearDynModel {
   Eigen::Map<const Eigen::MatrixXd> fromCasadiDMtoEigen(
       const casadi::DM& casadi_matrix);
 
-  const int& getStateDimension();
-  const int& getInputDimension();
+  int getStateDimension();
+  int getInputDimension();
+  int getOutputDimension();
+  casadi::Function getStateTransitionFunction();
+  casadi::Function getMeasurementFunction();
 
  private:
   casadi::Function state_transition_function_{};
@@ -91,5 +94,6 @@ class NonlinearDynModel {
   // To ease debugging store state and input dimensions
   int state_dim_{0};
   int input_dim_{0};
+  int output_dim_{0};
 };
 }  // namespace bayesian_filters

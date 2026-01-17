@@ -12,7 +12,8 @@ add_library(${PROJECT_NAME}
  src/KalmanFilter.cpp
  src/LTIModel.cpp
  src/NonlinearDynModel.cpp
- src/ExtendedKalmanFilter.cpp)
+ src/ExtendedKalmanFilter.cpp
+ src/VariationalFreeEnergyFilter.cpp)
 
 target_include_directories(${PROJECT_NAME} 
  PUBLIC 

@@ -1,5 +1,5 @@
 #pragma once
-#include "bayesian-filters/BayesianFilter.hpp"
+#include "bayesian-filters/BayesianFilter.h"
 #include "bayesian-filters/LTIModel.h"
 
 namespace bayesian_filters {

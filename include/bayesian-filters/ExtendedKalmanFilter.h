@@ -1,7 +1,7 @@
 #pragma once
 #include <eigen3/Eigen/Dense>
 
-#include "bayesian-filters/BayesianFilter.hpp"
+#include "bayesian-filters/BayesianFilter.h"
 #include "bayesian-filters/NonlinearDynModel.h"
 namespace bayesian_filters {
 
